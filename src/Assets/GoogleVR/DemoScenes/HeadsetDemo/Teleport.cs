@@ -19,6 +19,9 @@ using System.Collections;
 public class Teleport : MonoBehaviour, IGvrGazeResponder {
   private Vector3 startingPosition;
 
+  public Material inactiveMaterial;
+  public Material gazedAtMaterial;
+
   void Start() {
     startingPosition = transform.localPosition;
     SetGazedAt(false);
@@ -32,27 +35,16 @@ public class Teleport : MonoBehaviour, IGvrGazeResponder {
   }
 
   public void SetGazedAt(bool gazedAt) {
+    if (inactiveMaterial != null && gazedAtMaterial != null) {
+      GetComponent<Renderer>().material = gazedAt ? gazedAtMaterial : inactiveMaterial;
+      return;
+    }
     GetComponent<Renderer>().material.color = gazedAt ? Color.green : Color.red;
   }
 
   public void Reset() {
     transform.localPosition = startingPosition;
   }
-
-  public void ToggleVRMode() {
-    GvrViewer.Instance.VRModeEnabled = !GvrViewer.Instance.VRModeEnabled;
-  }
-
-  public void ToggleDistortionCorrection() {
-    GvrViewer.Instance.DistortionCorrectionEnabled =
-      !GvrViewer.Instance.DistortionCorrectionEnabled;
-  }
-
-#if !UNITY_HAS_GOOGLEVR || UNITY_EDITOR
-  public void ToggleDirectRender() {
-    GvrViewer.Controller.directRender = !GvrViewer.Controller.directRender;
-  }
-#endif  //  !UNITY_HAS_GOOGLEVR || UNITY_EDITOR
 
   public void TeleportRandomly() {
     Vector3 direction = Random.onUnitSphere;
@@ -75,7 +67,7 @@ public class Teleport : MonoBehaviour, IGvrGazeResponder {
     SetGazedAt(false);
   }
 
-  /// Called when the viewer's trigger is used, between OnGazeEnter and OnGazeExit.
+  /// Called when the viewer's trigger is used, between OnGazeEnter and OnPointerExit.
   public void OnGazeTrigger() {
     TeleportRandomly();
   }
