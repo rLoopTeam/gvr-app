@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿///Author: Michael House 
+///Date: 1/27/2016
+
+using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -7,7 +10,9 @@ public class PartLabel : MonoBehaviour, IPointerClickHandler
 {
 
     public string partText = "";
+    public Sprite imageToShow;
     public Text partLabelTextObject;
+    public Image locationToShowImage;
 
     void Start()
     {
@@ -28,5 +33,6 @@ public class PartLabel : MonoBehaviour, IPointerClickHandler
     public void ShowText()
     {
         partLabelTextObject.text = partText;
+        locationToShowImage.sprite = imageToShow;
     }
 }
