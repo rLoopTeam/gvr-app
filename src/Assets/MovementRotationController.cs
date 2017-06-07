@@ -11,6 +11,7 @@ public class MovementRotationController : MonoBehaviour {
     public GameObject rotateObject;
     public GameObject[] liftObjects;
 
+
     int currentLiftIndex = 0;
     int targetLiftIndex = 0;
    
@@ -36,6 +37,12 @@ public class MovementRotationController : MonoBehaviour {
         targetHeight = new Vector3[liftObjects.Length];
         liftCorroutines = new Coroutine[liftObjects.Length];
         startRotation = endRotation = rotateObject.transform.rotation;
+		AudioSource audio = gameObject.AddComponent<AudioSource >();
+		AudioClip clip1 = (AudioClip)Resources.Load ("Button_2_Pack2");
+		AudioClip clip2 = (AudioClip)Resources.Load ("Button_3_Pack2");
+		AudioClip clip3 = (AudioClip)Resources.Load ("Button_4_Pack2");
+		AudioClip clip4 = (AudioClip)Resources.Load ("Button_5_Pack2");
+		AudioClip clip5 = (AudioClip)Resources.Load ("Button_6_Pack2");
 
         for (int i = 0; i < liftObjects.Length; i++)
         {
@@ -63,7 +70,8 @@ public class MovementRotationController : MonoBehaviour {
             rotateObject.transform.rotation = Quaternion.Lerp(startRotation, endRotation, timeRotating / rotateSpeed);
         }
 
-        if (Input.GetKeyDown(KeyCode.RightArrow))
+		if (Input.GetKeyDown (KeyCode.RightArrow))
+			audio.clip = clip1;
             MoveRight();
         if (Input.GetKeyDown(KeyCode.LeftArrow))
             MoveLeft();
