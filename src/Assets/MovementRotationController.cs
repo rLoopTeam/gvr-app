@@ -71,7 +71,7 @@ public class MovementRotationController : MonoBehaviour {
         }
 
 		if (Input.GetKeyDown (KeyCode.RightArrow))
-			audio.clip = clip1;
+			//GetComponent<AudioSource>().clip = clip1;
             MoveRight();
         if (Input.GetKeyDown(KeyCode.LeftArrow))
             MoveLeft();
