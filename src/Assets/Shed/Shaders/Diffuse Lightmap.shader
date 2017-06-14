@@ -1,4 +1,6 @@
-﻿Shader "Diffuse Lightmap" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Diffuse Lightmap" {
 
 	Properties {
 		_Color("Color", Color) = (1,1,1,1)
@@ -48,7 +50,7 @@
 
 			v2f vert(appdata_lightmap i) {
 				v2f o;
-				o.pos = mul(UNITY_MATRIX_MVP, i.vertex);
+				o.pos = UnityObjectToClipPos(i.vertex);
 				o.uv0 = TRANSFORM_TEX(i.texcoord, _MainTex);
 				o.uv1 = i.texcoord1.xy * _LightMapTex_ST.xy + _LightMapTex_ST.zw;
 

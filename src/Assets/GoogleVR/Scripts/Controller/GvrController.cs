@@ -14,9 +14,10 @@
 
 // The controller is not available for versions of Unity without the
 // GVR native integration.
-#if UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)
 
 using UnityEngine;
+
+#if UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)
 using UnityEngine.VR;
 using System;
 using System.Collections;
@@ -40,16 +41,16 @@ public enum GvrConnectionState {
   Connected = 3,
 };
 
-// Represents the API status of the current controller state.
-// Values and semantics from gvr_types.h in the GVR C API.
+/// Represents the API status of the current controller state.
+/// Values and semantics from gvr_types.h in the GVR C API.
 public enum GvrControllerApiStatus {
-  // A Unity-localized error occurred.
-  // This is the only value that isn't in gvr_types.h.
+  /// A Unity-localized error occurred.
+  /// This is the only value that isn't in gvr_types.h.
   Error = -1,
 
-  // API is happy and healthy. This doesn't mean the controller itself
-  // is connected, it just means that the underlying service is working
-  // properly.
+  /// API is happy and healthy. This doesn't mean the controller itself
+  /// is connected, it just means that the underlying service is working
+  /// properly.
   Ok = 0,
 
   /// Any other status represents a permanent failure that requires
@@ -71,6 +72,34 @@ public enum GvrControllerApiStatus {
   ApiMalfunction = 6,
 };
 
+/// Represents the controller's current battery level.
+/// Values and semantics from gvr_types.h in the GVR C API.
+public enum GvrControllerBatteryLevel {
+  /// A Unity-localized error occurred.
+  /// This is the only value that isn't in gvr_types.h.
+  Error = -1,
+
+  /// The battery state is currently unreported
+  Unknown = 0,
+
+  /// Equivalent to 1 out of 5 bars on the battery indicator
+  CriticalLow = 1,
+
+  /// Equivalent to 2 out of 5 bars on the battery indicator
+  Low = 2,
+
+  /// Equivalent to 3 out of 5 bars on the battery indicator
+  Medium = 3,
+
+  /// Equivalent to 4 out of 5 bars on the battery indicator
+  AlmostFull = 4,
+
+  /// Equivalent to 5 out of 5 bars on the battery indicator
+  Full = 5,
+};
+#endif  // UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)
+
+
 /// Main entry point for the Daydream controller API.
 ///
 /// To use this API, add this behavior to a GameObject in your scene, or use the
@@ -81,6 +110,7 @@ public enum GvrControllerApiStatus {
 /// To access the controller state, simply read the static properties of this class. For example,
 /// to know the controller's current orientation, use GvrController.Orientation.
 public class GvrController : MonoBehaviour {
+#if UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)
   private static GvrController instance;
   private static IControllerProvider controllerProvider;
 
@@ -258,6 +288,21 @@ public class GvrController : MonoBehaviour {
     }
   }
 
+  // Always false in the emulator.
+  public static bool HomeButtonDown {
+    get {
+      return instance != null ? instance.controllerState.homeButtonDown : false;
+    }
+  }
+
+  // Always false in the emulator.
+  public static bool HomeButtonState {
+    get {
+      return instance != null ? instance.controllerState.homeButtonState : false;
+    }
+  }
+
+
   /// If State == GvrConnectionState.Error, this contains details about the error.
   public static string ErrorDetails {
     get {
@@ -278,6 +323,20 @@ public class GvrController : MonoBehaviour {
     }
   }
 
+  /// If true, the user is currently touching the controller's touchpad.
+  public static bool IsCharging {
+    get {
+      return instance != null ? instance.controllerState.isCharging : false;
+    }
+  }
+
+  /// If true, the user is currently touching the controller's touchpad.
+  public static GvrControllerBatteryLevel BatteryLevel {
+    get {
+      return instance != null ? instance.controllerState.batteryLevel : GvrControllerBatteryLevel.Error;
+    }
+  }
+
   void Awake() {
     if (instance != null) {
       Debug.LogError("More than one GvrController instance was found in your scene. "
@@ -290,12 +349,8 @@ public class GvrController : MonoBehaviour {
       controllerProvider = ControllerProviderFactory.CreateControllerProvider(this);
     }
 
-    // Keep screen on here, in case there isn't a GvrViewerMain prefab in the scene.
-    // This ensures the behaviour for:
-    //   (a) Cardboard apps on pre-integration Unity versions - they must have GvrViewerMain in a scene.
-    //   (b) Daydream apps - these must be on GVR-integrated Unity versions, and must have GvrControllerMain.
-    // Cardboard-only apps on the native integration are likely to have GvrViewerMain in their scene; otherwise,
-    // the line below can be added to any script of the developer's choice.
+    // Keep screen on here, since GvrController must be in any GVR scene in order to enable
+    // controller capabilities.
     Screen.sleepTimeout = SleepTimeout.NeverSleep;
   }
 
@@ -306,17 +361,16 @@ public class GvrController : MonoBehaviour {
   private void UpdateController() {
     controllerProvider.ReadState(controllerState);
 
-    // If a headset recenter was requested, do it now.
-    if (controllerState.headsetRecenterRequested) {
 #if UNITY_EDITOR
-      GvrViewer sdk = GvrViewer.Instance;
-      if (sdk) {
-        sdk.Recenter();
+    // If a headset recenter was requested, do it now.
+    if (controllerState.recentered) {
+      for (int i = 0; i < Camera.allCameras.Length; i++) {
+        Camera cam = Camera.allCameras[i];
+        // Do not reset pitch, which is how it works on the device.
+        cam.transform.localRotation = Quaternion.Euler(cam.transform.localRotation.eulerAngles.x, 0, 0);
       }
-#else
-      InputTracking.Recenter();
-#endif  // UNITY_EDITOR
     }
+#endif  // UNITY_EDITOR
   }
 
   void OnApplicationPause(bool paused) {
@@ -344,9 +398,11 @@ public class GvrController : MonoBehaviour {
       // it gets reset.
       yield return waitForEndOfFrame;
       UpdateController();
-      OnControllerUpdate();
+      if (OnControllerUpdate != null) {
+        OnControllerUpdate();
+      }
     }
   }
+#endif  // UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)
 }
 
-#endif  // UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)

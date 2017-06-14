@@ -70,9 +70,6 @@ public static class GvrAudio {
   /// @note This should only be called from the main Unity thread.
   public static void Initialize (GvrAudioListener listener, Quality quality) {
     if (!initialized) {
-#if !UNITY_EDITOR && UNITY_ANDROID
-      SetApplicationState();
-#endif
       // Initialize the audio system.
       AudioConfiguration config = AudioSettings.GetConfiguration();
       sampleRate = config.sampleRate;
@@ -82,7 +79,7 @@ public static class GvrAudio {
         Debug.LogError("Only 'Stereo' speaker mode is supported by GVR Audio.");
         return;
       }
-      Initialize(quality, sampleRate, numChannels, framesPerBuffer);
+      Initialize((int) quality, sampleRate, numChannels, framesPerBuffer);
       listenerTransform = listener.transform;
 
       initialized = true;
@@ -125,11 +122,11 @@ public static class GvrAudio {
     return soundfieldId;
   }
 
-  /// Destroys the soundfield with given |id|.
+  /// Updates the |soundfield| with given |id| and its properties.
   /// @note This should only be called from the main Unity thread.
-  public static void DestroyAudioSoundfield (int id) {
+  public static void UpdateAudioSoundfield (int id, GvrAudioSoundfield soundfield) {
     if (initialized) {
-      DestroySoundfield(id);
+      SetSourceBypassRoomEffects(id, soundfield.bypassRoomEffects);
     }
   }
 
@@ -138,7 +135,7 @@ public static class GvrAudio {
   public static int CreateAudioSource (bool hrtfEnabled) {
     int sourceId = -1;
     if (initialized) {
-      sourceId = CreateSource(hrtfEnabled);
+      sourceId = CreateSoundObject(hrtfEnabled);
     }
     return sourceId;
   }
@@ -198,10 +195,11 @@ public static class GvrAudio {
     if (initialized) {
       Vector3 listenerPosition = listenerTransform.position;
       Vector3 sourceFromListener = sourceTransform.position - listenerPosition;
-      RaycastHit[] hits = Physics.RaycastAll(listenerPosition, sourceFromListener,
-                                             sourceFromListener.magnitude, occlusionMaskValue);
-      foreach (RaycastHit hit in hits) {
-        if (hit.transform != listenerTransform && hit.transform != sourceTransform) {
+      int numHits = Physics.RaycastNonAlloc(listenerPosition, sourceFromListener, occlusionHits,
+                                            sourceFromListener.magnitude, occlusionMaskValue);
+      for (int i = 0; i < numHits; ++i) {
+        if (occlusionHits[i].transform != listenerTransform &&
+            occlusionHits[i].transform != sourceTransform) {
           occlusion += 1.0f;
         }
       }
@@ -272,6 +270,9 @@ public static class GvrAudio {
 
   /// Maximum allowed reflectivity multiplier of a room surface material.
   public const float maxReflectivity = 2.0f;
+
+  /// Maximum allowed number of raycast hits for occlusion computation per source.
+  public const int maxNumOcclusionHits = 12;
 
   /// Source occlusion detection rate in seconds.
   public const float occlusionDetectionInterval = 0.2f;
@@ -371,21 +372,14 @@ public static class GvrAudio {
   // Listener transform.
   private static Transform listenerTransform = null;
 
+  // Pre-allocated raycast hit list for occlusion computation.
+  private static RaycastHit[] occlusionHits = new RaycastHit[maxNumOcclusionHits];
+
   // Occlusion layer mask.
   private static int occlusionMaskValue = -1;
 
   // 3D pose instance to be used in transform space conversion.
   private static MutablePose3D pose = new MutablePose3D();
-
-#if !UNITY_EDITOR && UNITY_ANDROID
-  private const string GvrAudioClass = "com.google.vr.audio.unity.GvrAudio";
-
-  private static void SetApplicationState() {
-    using (var gvrAudioClass = Gvr.Internal.BaseAndroidDevice.GetClass(GvrAudioClass)) {
-      Gvr.Internal.BaseAndroidDevice.CallStaticMethod(gvrAudioClass, "setUnityApplicationState");
-    }
-  }
-#endif
 
 #if UNITY_IOS
   private const string pluginName = "__Internal";
@@ -401,12 +395,9 @@ public static class GvrAudio {
   [DllImport(pluginName)]
   private static extern int CreateSoundfield (int numChannels);
 
-  [DllImport(pluginName)]
-  private static extern void DestroySoundfield (int soundfieldId);
-
   // Source handlers.
   [DllImport(pluginName)]
-  private static extern int CreateSource (bool enableHrtf);
+  private static extern int CreateSoundObject (bool enableHrtf);
 
   [DllImport(pluginName)]
   private static extern void DestroySource (int sourceId);
@@ -429,7 +420,7 @@ public static class GvrAudio {
 
   // System handlers.
   [DllImport(pluginName)]
-  private static extern void Initialize (Quality quality, int sampleRate, int numChannels,
+  private static extern void Initialize (int quality, int sampleRate, int numChannels,
                                          int framesPerBuffer);
 
   [DllImport(pluginName)]

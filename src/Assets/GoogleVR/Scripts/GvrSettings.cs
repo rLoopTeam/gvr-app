@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All rights reserved.
+// Copyright 2017 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ using UnityEngine;
 using UnityEngine.VR;
 using System;
 using System.Runtime.InteropServices;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif  // UNITY_EDITOR
 
 public static class GvrSettings {
-
-  private const string PACKAGE_UNITY_PLAYER = "com.unity3d.player.UnityPlayer";
-  private const string METHOD_CURRENT_ACTIVITY = "currentActivity";
   private const string METHOD_GET_WINDOW = "getWindow";
   private const string METHOD_RUN_ON_UI_THREAD = "runOnUiThread";
   private const string METHOD_SET_SUSTAINED_PERFORMANCE_MODE = "setSustainedPerformanceMode";
@@ -39,7 +39,7 @@ public static class GvrSettings {
     Daydream
   }
   public static ViewerPlatformType ViewerPlatform {
-    // Expose a setter only for the edtior emulator, for development testing purposes.
+    // Expose a setter only for the editor emulator, for development testing purposes.
 #if UNITY_EDITOR
     get {
       return editorEmulatorOnlyViewerPlatformType;
@@ -82,10 +82,10 @@ public static class GvrSettings {
     // Expose a setter only for the editor emulator, for development testing purposes.
 #if UNITY_EDITOR
     get {
-      return editorEmulatorOnlyHandedness;
+      return (UserPrefsHandedness)EditorPrefs.GetInt(EMULATOR_HANDEDNESS_PREF_NAME, (int)UserPrefsHandedness.Right);
     }
     set {
-      editorEmulatorOnlyHandedness = value;
+      EditorPrefs.SetInt(EMULATOR_HANDEDNESS_PREF_NAME, (int)value);
     }
 #else
     // Running on Android.
@@ -108,17 +108,14 @@ public static class GvrSettings {
   }
 #if UNITY_EDITOR
   // This allows developers to test handedness in the editor emulator.
-  private static UserPrefsHandedness editorEmulatorOnlyHandedness =
-    UserPrefsHandedness.Right;
+  private const string EMULATOR_HANDEDNESS_PREF_NAME = "GoogleVREditorEmulatorHandedness";
 #endif  // UNITY_EDITOR
 
   private static void SetSustainedPerformanceMode(bool enabled) {
 #if !UNITY_EDITOR
     AndroidJavaObject androidActivity = null;
     try {
-      using (AndroidJavaObject unityPlayer = new AndroidJavaClass(PACKAGE_UNITY_PLAYER)) {
-        androidActivity = unityPlayer.GetStatic<AndroidJavaObject>(METHOD_CURRENT_ACTIVITY);
-      }
+      androidActivity = GvrActivityHelper.GetActivity();
     } catch (AndroidJavaException e) {
       Debug.LogError("Exception while connecting to the Activity: " + e);
       return;
@@ -140,17 +137,13 @@ public static class GvrSettings {
 #endif  // !UNITY_EDITOR
   }
 
-
-  private const string dllName = "gvr";
-
-  [DllImport(dllName)]
+  [DllImport(GvrActivityHelper.GVR_DLL_NAME)]
   private static extern IntPtr gvr_get_user_prefs(IntPtr gvrContextPtr);
 
-  [DllImport(dllName)]
+  [DllImport(GvrActivityHelper.GVR_DLL_NAME)]
   private static extern int gvr_get_viewer_type(IntPtr gvrContextPtr);
 
-  [DllImport(dllName)]
+  [DllImport(GvrActivityHelper.GVR_DLL_NAME)]
   private static extern int gvr_user_prefs_get_controller_handedness(IntPtr gvrUserPrefsPtr);
-
 }
 #endif  // UNITY_HAS_GOOGLEVR && (UNITY_ANDROID || UNITY_EDITOR)
